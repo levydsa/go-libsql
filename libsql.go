@@ -136,7 +136,7 @@ func NewEmbeddedReplicaConnector(dbPath string, primaryUrl string, opts ...Optio
 		AuthToken:         authToken,
 		EncryptionKey:     encryptionKey,
 		DisableReadYourWrites: !readYourWrites,
-		syncInterval:      uint64(syncInterval.Milliseconds()),
+		SyncInterval:      uint64(syncInterval.Milliseconds()),
 	})
 }
 
@@ -246,7 +246,7 @@ func (d Driver) OpenConnector(dbAddress string) (driver.Connector, error) {
 			Url:           "libsql://" + u.Hostname(),
 			AuthToken:     authToken,
 			EncryptionKey: encryptionKey,
-			syncInterval:  uint64(syncInterval),
+			SyncInterval:  uint64(syncInterval),
 			WithWebpki:    withWebpki,
 			DisableReadYourWrites: !readYourWrites,
 		})
@@ -260,7 +260,7 @@ type ConnectorOptions struct {
 	Path              string
 	AuthToken         string
 	EncryptionKey     string
-	syncInterval      uint64
+	SyncInterval      uint64
 	WithWebpki        bool
 	DisableReadYourWrites bool
 }
@@ -291,7 +291,7 @@ func NewConnector(opt ConnectorOptions) (*Connector, error) {
 		encryption_key:       encryptionKey,
 		disable_read_your_writes: C.bool(opt.DisableReadYourWrites),
 		webpki:               C.bool(opt.WithWebpki),
-		sync_interval:        C.uint64_t(opt.syncInterval),
+		sync_interval:        C.uint64_t(opt.SyncInterval),
 	})
 	if db.err != nil {
 		return nil, goErr(db.err)
