@@ -5,9 +5,11 @@ package libsql
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/lib/
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/lib/x86_64-apple-darwin
 #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/lib/aarch64-apple-darwin
 #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/lib/x86_64-unknown-linux-gnu
 #cgo linux,arm64 LDFLAGS: -L${SRCDIR}/lib/aarch64-unknown-linux-gnu
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/lib/x86_64-unknown-linux-gnu
 #cgo LDFLAGS: -llibsql
 #cgo LDFLAGS: -lm
 #cgo darwin LDFLAGS: -framework Security
@@ -622,7 +624,7 @@ func (rows *Rows) Close() error {
 }
 
 func (rows *Rows) Columns() []string {
-	columns := make([]string, C.libsql_rows_column_length(rows.inner))
+	columns := make([]string, C.libsql_rows_column_count(rows.inner))
 
 	for i := range columns {
 		name := C.libsql_rows_column_name(rows.inner, C.int(i))
