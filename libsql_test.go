@@ -1140,7 +1140,7 @@ func TestErrorNonUtf8URL(t *testing.T) {
 		}()
 		t.Fatal("expected error")
 	}
-	if !strings.Contains(err.Error(), "invalid utf-8 sequence") {
+	if err.Error() != "invalid utf-8 sequence of 1 bytes from index 1" {
 		t.Fatal("unexpected error:", err)
 	}
 }
@@ -1180,11 +1180,11 @@ func TestErrorCanNotConnect(t *testing.T) {
 				t.Fatal(err)
 			}
 		}()
-		// t.Fatal("expected error")
+		t.Fatal("expected error")
 	}
-	// if err.Error() != "failed to connect to database\nerror code = 1: Unable to connect: Failed to connect to database: `Unable to open connection to local database file:/root/test.db: 14`" {
-	// 	t.Fatal("unexpected error:", err)
-	// }
+	if err.Error() != "failed to connect to database\nerror code = 1: Unable to connect: Failed to connect to database: `Unable to open connection to local database file:/root/test.db: 14`" {
+		t.Fatal("unexpected error:", err)
+	}
 }
 
 func TestExec(t *testing.T) {
@@ -1209,7 +1209,7 @@ func TestErrorExec(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		if !strings.Contains(err.Error(), "SQLite failure: `near \"TABLES\": syntax error`") {
+		if err.Error() != "SQLite failure: `near \"TABLES\": syntax error`" {
 			t.Fatal("unexpected error:", err)
 		}
 	})
@@ -1281,7 +1281,7 @@ func TestErrorQuery(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
-		if !strings.Contains(err.Error(), "SQLite failure: `no such table: test`") {
+		if err.Error() != "SQLite failure: `no such table: test`" {
 			t.Fatal("unexpected error:", err)
 		}
 	})
@@ -1317,28 +1317,45 @@ func TestQueryWithEmptyResult(t *testing.T) {
 
 func TestErrorRowsNext(t *testing.T) {
 	runFileTest(t, func(t *testing.T, db *sql.DB) {
-		if _, err := db.Exec("CREATE TABLE test (id INTEGER)"); err != nil {
+		db.Exec("PRAGMA journal_mode=DELETE")
+		if _, err := db.ExecContext(context.Background(), "CREATE TABLE test (id INTEGER)"); err != nil {
 			t.Fatal(err)
 		}
-
-		if false { // change to true to break.
-			c1, err := db.Conn(context.Background())
-			if err != nil {
+		for i := 0; i < 10; i++ {
+			if _, err := db.ExecContext(context.Background(), "INSERT INTO test VALUES("+fmt.Sprint(i)+")"); err != nil {
 				t.Fatal(err)
 			}
-			defer c1.Close()
 		}
-
+		c1, err := db.Conn(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c1.Close()
+		c1.ExecContext(context.Background(), "PRAGMA journal_mode=DELETE")
 		c2, err := db.Conn(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer c2.Close()
-
+		c2.ExecContext(context.Background(), "PRAGMA journal_mode=DELETE")
+		_, err = c1.ExecContext(context.Background(), "BEGIN EXCLUSIVE TRANSACTION")
+		if err != nil {
+			t.Fatal(err)
+		}
 		rows, err := c2.QueryContext(context.Background(), "SELECT id FROM test")
 		if err != nil {
-			t.Fatal(err) // <--- SQLite failure: `no such table: test`
+			t.Fatal(err)
 		}
 		defer rows.Close()
+		if rows.Next() {
+			t.Fatal("there should be no rows")
+		}
+		err = rows.Err()
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if err.Error() != "failed to get next row\nerror code = 1: Error fetching next row: SQLite failure: `database is locked`" {
+			t.Fatal("unexpected error:", err)
+		}
 	})
 }
